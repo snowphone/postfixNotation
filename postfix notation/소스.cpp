@@ -1,52 +1,55 @@
 #include <iostream>
-#include <stack>	
 #include <string>
 #include <algorithm>
 using namespace std;
-const string PLS = "+", SUB = "-", MUL = "*", DIV = "/";
-const string operators = "+-*/";
-const string plsSub = "+-";
-const string mulDiv = "*/";
-char getOperator(stack<char>& lstk, stack<char>& rstk) {
-	char ch = 0;
-	while (!rstk.empty()) {
-		ch = rstk.top();
-		rstk.pop();
-		if (operators.find(ch) != string::npos)
-			return ch;
-		else
-			lstk.push(ch);
+const string operators = "+-*/",
+	mulDiv = "*/";
+char getOperator(string& output, string& exp) {
+	if (exp.empty())
+		return 0;
+	for(auto it = exp.begin(); it != exp.end(); ++it){
+		auto opIt = find(operators.begin(), operators.end(), *it);
+		if (opIt != operators.end()) {
+			output.append(string(exp.begin(), it));
+			char oper = *it;
+			exp = string(it + 1, exp.end());
+			return oper;
+		}
 	}
 	return 0;
 }
-string::iterator getLeft(string::iterator it, bool isInTheBracket = false) {
+string::iterator getLeft(string::iterator it, int pairs = 0) {
 	char ch = *it;
-	if (isInTheBracket) {
+	if (pairs) {
 		if (ch == '(')
-			return it;
+			return pairs == 1 ? it : getLeft(it - 1, pairs - 1);
+		else if (ch == ')')
+			return getLeft(it - 1, pairs + 1);
 		else
-			return getLeft(it - 1, true);
+			return getLeft(it - 1, pairs);
 	}
 	if (operators.find(ch) != string::npos)
-		return getLeft(it - 1, isInTheBracket);
+		return getLeft(it - 1, pairs);
 	if (ch == ')')
-		return getLeft(it - 1, true);
+		return getLeft(it - 1, pairs+1);
 
 	return it;
 }
-string::iterator getRight(string::iterator it, bool isInTheBracket = false) {
+string::iterator getRight(string::iterator it, int pairs = 0) {
 	char ch = *it;
 
-	if (isInTheBracket) {
+	if (pairs) {
 		if (ch == ')')
-			return it;
+			return pairs == 1 ? it : getRight(it + 1, pairs - 1);
+		else if (ch == '(')
+			return getRight(it + 1, pairs + 1);
 		else
-			return getRight(it + 1, true);
+			return getRight(it + 1, pairs);
 	}
 	if (find(operators.begin(), operators.end(), ch) != operators.end())
-		return getRight(it + 1, isInTheBracket);
+		return getRight(it + 1, pairs);
 	if (ch == '(')
-		return getRight(it + 1, true);
+		return getRight(it + 1, pairs + 1);
 	return it;
 }
 void setPriority(string&exp) {
@@ -64,75 +67,32 @@ void setPriority(string&exp) {
 		op = rlast - length - 1;
 	}
 }
-string getLeft(stack<char>& lstk, bool inTheBracket = false) {
-	if (lstk.empty()) 
-		return "";
-	char ch = lstk.top();
-	lstk.pop();
-	if (find(operators.begin(), operators.end(), ch) != operators.end())
-		return getLeft(lstk, inTheBracket) + ch;
-	if (ch == ')')
-		return getLeft(lstk, true) + ch;
-	if (inTheBracket) {
-		if (ch == '(')
-			return "(";
-		else
-			return getLeft(lstk, true) + ch;
-	}
-	return string(1, ch);
-}
-string getRight(stack<char>& rstk, bool inTheBracket = false) {
-	if (rstk.empty())
-		return "";
-	char ch = rstk.top();
-	rstk.pop();
-	if (find(operators.begin(), operators.end(), ch) != operators.end())
-		return ch + getRight(rstk, inTheBracket);
-	if (ch == '(')
-		return ch + getRight(rstk, true);
-	if (inTheBracket) {
-		if (ch == ')')
-			return ")";
-		else
-			return ch + getRight(rstk, true);
-	}
-	return string(1, ch);
-}
-void Push(stack<char>& stk, const string& str) {
-	for (const char& c : str)
-		stk.push(c);
-}
-string deleteBracket(const string& expression) {
-	string ret;
-	for (auto it = expression.begin(); it != expression.end(); ++it)
+
+void deleteBracket(string& expression) {
+	auto it = expression.begin();
+	while (it != expression.end())
 		if (*it == '(' || *it == ')')
-			continue;
+			it = expression.erase(it);
 		else
-			ret.push_back(*it);
-	return ret;
+			++it;
 }
 string transform(string exp) {
-	stack<char> lstk, rstk;
-	for_each(exp.rbegin(), exp.rend(), [&](char c) {rstk.push(c); });
-
-	while (!rstk.empty()) {
-		char ch = getOperator(lstk, rstk);
-		if (ch == 0) break;
-		Push(lstk, getLeft(lstk) + transform(getRight(rstk)) + ch);
+	string output;
+	if (exp.size() == 1) return exp;
+	while (!exp.empty()) {
+		char op = getOperator(output, exp);
+		if (op == 0) break;
+		auto rlastIter = getRight(exp.begin());
+		string right = transform(string(exp.begin(), rlastIter + 1));
+		output.append(right + op);
+		exp = string(rlastIter + 1, exp.end());
 	}
-	string reversed;
-	while (!lstk.empty()) {
-		reversed.push_back(lstk.top());
-		lstk.pop();
-	}
-	reverse(reversed.begin(), reversed.end());
-	return reversed;
+	deleteBracket(output);
+	return output;
 }
 int main() {
 	string expression;
 	cin >> expression;
 	setPriority(expression);
-	cout << expression << endl;
-	expression = transform(expression);
-	cout << deleteBracket(expression);
+	cout << transform(expression) << endl;
 }
