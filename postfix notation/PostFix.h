@@ -1,64 +1,65 @@
 #pragma once
+#include <ios>
 #include <string>
 #include <algorithm>
-using namespace std;
+using std::find;	using std::ostream;
 class PostFix {
-	const std::string operators = "+-*/";
-	const std::string mulDiv = "*/";
-	std::string expression;
-	string output;
-
-	char getOperator() {
-		if (expression.empty())
+	typedef std::string Str;
+	typedef Str::iterator Iter;
+	const Str opers = "+-*/",
+		mulDiv = "*/";
+	Str expression;
+	char getOperator(Str& output, Str& exp) {
+		if (exp.empty())
 			return 0;
-
-		for (auto it = expression.begin(); it != expression.end(); ++it) {
-			auto  op = find(operators.begin(), operators.end(), *it);
-			if (op != operators.end()) {
-				output.append(string(expression.cbegin(), op));
-				expression = string(op + 1, expression.cend());
-				return *op;
+		for (auto it = exp.begin(); it != exp.end(); ++it) {
+			auto opIt = find(opers.begin(), opers.end(), *it);
+			if (opIt != opers.end()) {
+				output.append(Str(exp.begin(), it));
+				char oper = *it;
+				exp = Str(it + 1, exp.end());
+				return oper;
 			}
 		}
 		return 0;
 	}
-	string::iterator getLeft(string::iterator it, bool isInTheBracket = false) {
+	Iter getLeft(Iter it, int pairs = 0) {
 		char ch = *it;
-		if (isInTheBracket) {
+		if (pairs) {
 			if (ch == '(')
-				return it;
+				return pairs == 1 ? it : getLeft(it - 1, pairs - 1);
+			else if (ch == ')')
+				return getLeft(it - 1, pairs + 1);
 			else
-				return getLeft(it - 1, true);
+				return getLeft(it - 1, pairs);
 		}
-		if (operators.find(ch) != string::npos)
-			return getLeft(it - 1, isInTheBracket);
-		if (ch == ')') {
-			auto jt = getLeft(it - 1, true);
-			return jt != output.begin
-		}
+		if (opers.find(ch) != Str::npos)
+			return getLeft(it - 1, pairs);
+		if (ch == ')')
+			return getLeft(it - 1, pairs + 1);
 
 		return it;
 	}
-	string::iterator getRight(string::iterator it, bool isInTheBracket = false) {
+	Iter getRight(Iter it, int pairs = 0) {
 		char ch = *it;
 
-		if (isInTheBracket) {
+		if (pairs) {
 			if (ch == ')')
-				return it;
+				return pairs == 1 ? it : getRight(it + 1, pairs - 1);
+			else if (ch == '(')
+				return getRight(it + 1, pairs + 1);
 			else
-				return getRight(it + 1, true);
+				return getRight(it + 1, pairs);
 		}
-		if (find(operators.begin(), operators.end(), ch) != operators.end())
-			return getRight(it + 1, isInTheBracket);
-		if (ch == '(') {
-			auto jt = getRight(it + 1, true);
-			return (jt != expression.end() && it[1] == ')' ? ++jt : jt);
-		}
+		if (find(opers.begin(), opers.end(), ch) != opers.end())
+			return getRight(it + 1, pairs);
+		if (ch == '(')
+			return getRight(it + 1, pairs + 1);
 		return it;
 	}
-	void setPriority(string&exp) {
+	void setPriority(Str&exp) {
 		for (auto op = exp.begin(); op != exp.end(); ++op) {
-			if (mulDiv.find(*op) == string::npos)
+			if (mulDiv.find(*op) == Str::npos)
 				continue;
 			auto lbeg = getLeft(op);
 			ptrdiff_t length = op - lbeg;
@@ -71,6 +72,34 @@ class PostFix {
 			op = rlast - length - 1;
 		}
 	}
+
+	void deleteBracket(Str& exp) {
+		auto it = exp.begin();
+		while (it != exp.end())
+			if (*it == '(' || *it == ')')
+				it = exp.erase(it);
+			else
+				++it;
+	}
+	Str transform(Str exp) {
+		Str output;
+		if (exp.size() == 1) return exp;
+		while (!exp.empty()) {
+			char op = getOperator(output, exp);
+			if (op == 0) break;
+			auto rlastIter = getRight(exp.begin());
+			Str right = transform(Str(exp.begin(), rlastIter + 1));
+			output.append(right + op);
+			exp = Str(rlastIter + 1, exp.end());
+		}
+		deleteBracket(output);
+		return output;
+	}
 public:
-	void setExpression(string exp) { expression = exp; }
+	PostFix(const Str& exp) : expression(exp) {}
+	Str transform() { setPriority(expression); return transform(expression); }
 };
+ostream& operator<<(ostream& os, PostFix& postfix) {
+	os << postfix.transform();
+	return os;
+}

@@ -1,24 +1,27 @@
 #include <iostream>
 #include <string>
 #include <algorithm>
+#include "PostFix.h"
 using namespace std;
-const string operators = "+-*/",
+const string opers = "+-*/",
 	mulDiv = "*/";
-char getOperator(string& output, string& exp) {
+typedef string Str;
+typedef Str::iterator Iter;
+char getOperator(Str& output, Str& exp) {
 	if (exp.empty())
 		return 0;
-	for(auto it = exp.begin(); it != exp.end(); ++it){
-		auto opIt = find(operators.begin(), operators.end(), *it);
-		if (opIt != operators.end()) {
-			output.append(string(exp.begin(), it));
+	for (auto it = exp.begin(); it != exp.end(); ++it) {
+		auto opIt = find(opers.begin(), opers.end(), *it);
+		if (opIt != opers.end()) {
+			output.append(Str(exp.begin(), it));
 			char oper = *it;
-			exp = string(it + 1, exp.end());
+			exp = Str(it + 1, exp.end());
 			return oper;
 		}
 	}
 	return 0;
 }
-string::iterator getLeft(string::iterator it, int pairs = 0) {
+Iter getLeft(Iter it, int pairs = 0) {
 	char ch = *it;
 	if (pairs) {
 		if (ch == '(')
@@ -28,14 +31,14 @@ string::iterator getLeft(string::iterator it, int pairs = 0) {
 		else
 			return getLeft(it - 1, pairs);
 	}
-	if (operators.find(ch) != string::npos)
+	if (opers.find(ch) != Str::npos)
 		return getLeft(it - 1, pairs);
 	if (ch == ')')
-		return getLeft(it - 1, pairs+1);
+		return getLeft(it - 1, pairs + 1);
 
 	return it;
 }
-string::iterator getRight(string::iterator it, int pairs = 0) {
+Iter getRight(Iter it, int pairs = 0) {
 	char ch = *it;
 
 	if (pairs) {
@@ -46,15 +49,15 @@ string::iterator getRight(string::iterator it, int pairs = 0) {
 		else
 			return getRight(it + 1, pairs);
 	}
-	if (find(operators.begin(), operators.end(), ch) != operators.end())
+	if (find(opers.begin(), opers.end(), ch) != opers.end())
 		return getRight(it + 1, pairs);
 	if (ch == '(')
 		return getRight(it + 1, pairs + 1);
 	return it;
 }
-void setPriority(string&exp) {
+void setPriority(Str&exp) {
 	for (auto op = exp.begin(); op != exp.end(); ++op) {
-		if (mulDiv.find(*op) == string::npos)
+		if (mulDiv.find(*op) == Str::npos)
 			continue;
 		auto lbeg = getLeft(op);
 		ptrdiff_t length = op - lbeg;
@@ -68,31 +71,31 @@ void setPriority(string&exp) {
 	}
 }
 
-void deleteBracket(string& expression) {
-	auto it = expression.begin();
-	while (it != expression.end())
+void deleteBracket(Str& exp) {
+	auto it = exp.begin();
+	while (it != exp.end())
 		if (*it == '(' || *it == ')')
-			it = expression.erase(it);
+			it = exp.erase(it);
 		else
 			++it;
 }
-string transform(string exp) {
-	string output;
+Str transform(Str exp) {
+	Str output;
 	if (exp.size() == 1) return exp;
 	while (!exp.empty()) {
 		char op = getOperator(output, exp);
 		if (op == 0) break;
 		auto rlastIter = getRight(exp.begin());
-		string right = transform(string(exp.begin(), rlastIter + 1));
+		Str right = transform(Str(exp.begin(), rlastIter + 1));
 		output.append(right + op);
-		exp = string(rlastIter + 1, exp.end());
+		exp = Str(rlastIter + 1, exp.end());
 	}
 	deleteBracket(output);
 	return output;
 }
 int main() {
-	string expression;
+	Str expression;
 	cin >> expression;
-	setPriority(expression);
-	cout << transform(expression) << endl;
+	PostFix postfix(expression);
+	cout << postfix << endl;
 }
